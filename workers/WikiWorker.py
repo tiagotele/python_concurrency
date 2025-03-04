@@ -10,7 +10,7 @@ class WikiWorker():
         soup = BeautifulSoup(page_html, "lxml")
         table  = soup.find(id='constituents')
         table_rows  =table.find_all('tr')
-        for table_row in table_rows[1:30]:
+        for table_row in table_rows[1:]:
             symbol = table_row.find('td').text.strip('\n')
             yield symbol
     

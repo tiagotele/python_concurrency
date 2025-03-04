@@ -1,3 +1,4 @@
+import datetime
 import random
 import threading
 import time
@@ -5,20 +6,26 @@ import requests
 from lxml import html
 
 class YahooFinanceScheduler(threading.Thread):
-    def __init__(self, input_queue, **kwargs):
+    def __init__(self, input_queue, output_queue, **kwargs):
         super(YahooFinanceScheduler, self).__init__(**kwargs)
         self._input_queue = input_queue
+        self._output_queue = output_queue
         self.start()
         
     def run(self):
         while True:
             val = self._input_queue.get()
             if val == "DONE":
+                if self._output_queue is not None:
+                    self._output_queue.put("DONE")
                 break
             
             yahooFinancePriceWorker = YahooFinanceWorkers(symbol=val)
             price = yahooFinancePriceWorker.get_price()
-            print(price)
+            if self._output_queue is not None:
+                values = (val, price, datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S'))
+                self._output_queue.put(values)
+            # print(price)
             time.sleep(random.random())
 
 class YahooFinanceWorkers():
@@ -31,7 +38,7 @@ class YahooFinanceWorkers():
     
     
     def get_price(self):
-        print(f"running, url ={self._url}")
+        print(f"request to = {self._url}")
         time.sleep(25 * random.random())
         r = requests.get(self._url, headers= {'User-agent': 'your bot 0.1'})
         if r.status_code != 200:
@@ -45,4 +52,4 @@ class YahooFinanceWorkers():
 
 if __name__ == "__main__":
     y = YahooFinanceWorkers(symbol="AOS")
-    y.join()
+    # y.join()
