@@ -1,4 +1,5 @@
 import os
+from queue import Empty
 import threading
 
 from sqlalchemy import create_engine, text
@@ -11,7 +12,11 @@ class PostgresMasterShedulerWorker(threading.Thread):
     
     def run(self):
         while(True):
-            val = self._input_queue.get()
+            try:
+                val = self._input_queue.get(timeout=30)
+            except Empty:
+                print("Timeout reached in postgres scheduler")
+                break
             if val == "DONE":
                 break
             

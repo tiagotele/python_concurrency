@@ -1,7 +1,9 @@
 import datetime
+from queue import Empty
 import random
 import threading
 import time
+
 import requests
 from lxml import html
 
@@ -9,29 +11,35 @@ class YahooFinanceScheduler(threading.Thread):
     def __init__(self, input_queue, output_queue, **kwargs):
         super(YahooFinanceScheduler, self).__init__(**kwargs)
         self._input_queue = input_queue
-        self._output_queue = output_queue
+        temp_queue = output_queue
+        if type(temp_queue) != list:
+            temp_queue = [temp_queue]
+        self._output_queues = temp_queue
         self.start()
         
     def run(self):
         while True:
-            val = self._input_queue.get()
+            try:
+                val = self._input_queue.get(timeout=10)
+            except Empty:
+                print("Yahoo scheduler queue is empty")
             if val == "DONE":
-                if self._output_queue is not None:
-                    self._output_queue.put("DONE")
+                for output_queue in self._output_queues:
+                    output_queue.put("DONE")
                 break
             
             yahooFinancePriceWorker = YahooFinanceWorkers(symbol=val)
             price = yahooFinancePriceWorker.get_price()
-            if self._output_queue is not None:
+            for output_queue in self._output_queues:
                 values = (val, price, datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S'))
-                self._output_queue.put(values)
+                output_queue.put(values)
             # print(price)
             time.sleep(random.random())
 
 class YahooFinanceWorkers():
     
-    def __init__(self, symbol, **kwargs):
-        super(YahooFinanceWorkers, self).__init__(**kwargs)
+    def __init__(self, symbol):
+        super(YahooFinanceWorkers, self).__init__()
         self._symbol = symbol
         base_url = 'https://finance.yahoo.com/quote/'
         self._url = f'{base_url}{self._symbol}'
